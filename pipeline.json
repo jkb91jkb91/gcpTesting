@@ -1,0 +1,32 @@
+pipeline {
+    agent any
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scmGit(
+                    branches: [[name: 'main']],
+                    userRemoteConfigs: [[url: 'https://github.com/jkb91jkb91/gcpTesting.git']])
+            }
+        }
+        stage('Build') {
+            steps {
+               script {
+		    // Aby wypchnac image do google image registry nazwa >>>   gcr.io/PROJECT_ID/name:tag   
+                    def dockerImage = docker.build("gcr.io/gcpdevops-414216/myimg")
+                }
+            }
+        } // Musimy miec ServiceAccount dodany w GCP ktory i pobrac plik w JSON i nastepnie dodac go do Jenkinsa jako Secret File
+        stage('Push to Registry') {
+            steps {
+               withCredentials([file(credentialsId: 'gcloud-creds', variable: 'GCP_CREDS')]) {
+               sh '''
+                  gcloud auth activate-service-account --key-file="$GCP_CREDS"
+                  gcloud auth configure-docker
+                  docker push gcr.io/gcpdevops-414216/myimg
+               '''
+                }
+            }
+        }
+    }
+}
